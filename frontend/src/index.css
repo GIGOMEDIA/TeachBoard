@@ -1,0 +1,52 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 antialiased font-sans select-none overflow-hidden h-screen w-screen;
+  }
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  @apply bg-slate-900/75 backdrop-blur-md border border-white/5 shadow-2xl;
+}
+
+.glass-panel-light {
+  @apply bg-white/70 backdrop-blur-md border border-slate-200/50 shadow-xl;
+}
+
+.glass-card {
+  @apply bg-slate-900/40 backdrop-blur-sm border border-white/5 hover:border-white/10 transition-all duration-300;
+}
+
+.glass-card-light {
+  @apply bg-white/40 backdrop-blur-sm border border-slate-200 hover:border-slate-300 transition-all duration-300;
+}
+
+.glass-input {
+  @apply bg-slate-950/40 border border-white/10 focus:border-primary/50 text-white rounded-lg px-3 py-2 outline-none transition-all;
+}
+
+.glass-input-light {
+  @apply bg-slate-50/40 border border-slate-200 focus:border-primary/50 text-slate-800 rounded-lg px-3 py-2 outline-none transition-all;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(2, 6, 23, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
