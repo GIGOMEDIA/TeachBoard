@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { LogOut, Plus, Play, Users, Clock, BookOpen, BarChart2 } from 'lucide-react';
 
-const BACKEND_URL = 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
 
 interface DashboardProps {
   setView: (view: 'dashboard' | 'classroom') => void;

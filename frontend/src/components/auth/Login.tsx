@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { Mail, Lock, User, GraduationCap, BookOpen } from 'lucide-react';
 
-const BACKEND_URL = 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
 
 export default function Login() {
   const { setAuth } = useStore();
