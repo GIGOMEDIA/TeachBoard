@@ -48,6 +48,13 @@ export const initSocket = (io) => {
       }
     });
 
+    // Broadcast real-time freehand drawing pointer coordinates
+    socket.on('draw-pointer', (data) => {
+      if (socket.roomCode) {
+        socket.to(socket.roomCode).emit('draw-pointer-received', data);
+      }
+    });
+
     // Broadcast canvas clear
     socket.on('canvas-clear', () => {
       if (socket.roomCode) {

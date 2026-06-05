@@ -25,6 +25,7 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   
   const {
+    user,
     socket,
     isConnected,
     currentTool,
@@ -44,6 +45,12 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
   const shapeStartPoint = useRef<{ x: number, y: number } | null>(null);
   const activeShape = useRef<fabric.Object | null>(null);
 
+  // Real-time pointer tracking refs
+  const isTeacherDrawing = useRef(false);
+  const studentLastPoint = useRef<{ x: number, y: number } | null>(null);
+  const studentDrawColor = useRef<string>('#14b8a6');
+  const studentDrawWidth = useRef<number>(3);
+
   // Initialize canvas
   useEffect(() => {
     let active = true;
@@ -51,8 +58,12 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
 
     const handleResize = () => {
       if (!containerRef.current || !canvasRef.current) return;
-      canvasRef.current.setWidth(containerRef.current.clientWidth);
-      canvasRef.current.setHeight(containerRef.current.clientHeight);
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+      canvasRef.current.setWidth(width);
+      canvasRef.current.setHeight(height);
+      const zoomFactor = width / 1920;
+      canvasRef.current.setZoom(zoomFactor);
       drawBackgroundGrid(canvasRef.current, useStore.getState().backgroundType);
     };
 
@@ -82,6 +93,10 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
 
       canvasRef.current = canvas;
 
+      // Set initial zoom factor based on 1920 virtual width
+      const initialZoom = width / 1920;
+      canvas.setZoom(initialZoom);
+
       // Setup background grid
       drawBackgroundGrid(canvas, backgroundType);
 
@@ -97,6 +112,48 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
             x: options.pointer.x,
             y: options.pointer.y
           });
+        }
+      });
+
+      // Real-time drawing pointer sync (Teacher side)
+      canvas.on('mouse:down', (o: any) => {
+        const currentUser = useStore.getState().user;
+        if (currentUser?.role !== 'teacher') return;
+
+        if (canvas.isDrawingMode) {
+          isTeacherDrawing.current = true;
+          const pointer = o.scenePoint || canvas.getPointer(o.e);
+          socket.emit('draw-pointer', {
+            event: 'down',
+            x: pointer.x,
+            y: pointer.y,
+            color: canvas.freeDrawingBrush?.color || currentColor,
+            width: canvas.freeDrawingBrush?.width || currentStrokeWidth
+          });
+        }
+      });
+
+      canvas.on('mouse:move', (o: any) => {
+        const currentUser = useStore.getState().user;
+        if (currentUser?.role !== 'teacher') return;
+
+        if (isTeacherDrawing.current && canvas.isDrawingMode) {
+          const pointer = o.scenePoint || canvas.getPointer(o.e);
+          socket.emit('draw-pointer', {
+            event: 'move',
+            x: pointer.x,
+            y: pointer.y
+          });
+        }
+      });
+
+      canvas.on('mouse:up', () => {
+        const currentUser = useStore.getState().user;
+        if (currentUser?.role !== 'teacher') return;
+
+        if (isTeacherDrawing.current) {
+          isTeacherDrawing.current = false;
+          socket.emit('draw-pointer', { event: 'up' });
         }
       });
 
@@ -303,6 +360,17 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
     canvas.discardActiveObject();
     canvas.renderAll();
 
+    const role = useStore.getState().user?.role;
+    if (role === 'student') {
+      canvas.isDrawingMode = false;
+      canvas.selection = false;
+      canvas.forEachObject((obj: any) => {
+        obj.selectable = false;
+        obj.evented = false;
+      });
+      return;
+    }
+
     if (currentTool === 'pencil') {
       canvas.isDrawingMode = true;
       canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
@@ -344,6 +412,13 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
     const savedBoardJSON = boards[activeBoardIndex];
     if (savedBoardJSON) {
       canvas.loadFromJSON(savedBoardJSON).then(() => {
+        const role = useStore.getState().user?.role;
+        if (role === 'student') {
+          canvas.forEachObject((obj: any) => {
+            obj.selectable = false;
+            obj.evented = false;
+          });
+        }
         drawBackgroundGrid(canvas, useStore.getState().backgroundType);
         canvas.requestRenderAll();
       });
@@ -361,6 +436,13 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
       if (!canvas) return;
 
       canvas.loadFromJSON(data).then(() => {
+        const role = useStore.getState().user?.role;
+        if (role === 'student') {
+          canvas.forEachObject((obj: any) => {
+            obj.selectable = false;
+            obj.evented = false;
+          });
+        }
         drawBackgroundGrid(canvas, useStore.getState().backgroundType);
         canvas.requestRenderAll();
       });
@@ -370,9 +452,63 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
       clearCanvasLocal();
     });
 
+    // Real-time student draw pointer replication
+    socket.on('draw-pointer-received', ({ event, x, y, color, width }: any) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const role = useStore.getState().user?.role;
+      if (role !== 'student') return; // Only students replicate the teacher's stream
+
+      if (event === 'down') {
+        studentLastPoint.current = { x, y };
+        studentDrawColor.current = color;
+        studentDrawWidth.current = width;
+      } 
+      else if (event === 'move' && studentLastPoint.current) {
+        const line = new fabric.Line([
+          studentLastPoint.current.x,
+          studentLastPoint.current.y,
+          x,
+          y
+        ], {
+          stroke: studentDrawColor.current,
+          strokeWidth: studentDrawWidth.current,
+          selectable: false,
+          evented: false,
+          // @ts-ignore
+          isTempLine: true
+        });
+        canvas.add(line);
+        canvas.requestRenderAll();
+        studentLastPoint.current = { x, y };
+      } 
+      else if (event === 'up') {
+        // Clear all temporary drawing lines
+        const tempObjects = canvas.getObjects().filter((obj: any) => obj.isTempLine);
+        tempObjects.forEach((obj: any) => canvas.remove(obj));
+        canvas.requestRenderAll();
+        studentLastPoint.current = null;
+      }
+    });
+
+    // Sync newly joined users
+    socket.on('user-joined', () => {
+      const canvas = canvasRef.current;
+      const role = useStore.getState().user?.role;
+      if (role === 'teacher') {
+        if (canvas) {
+          broadcastCanvas(canvas);
+        }
+        socket.emit('canvas-board-switch', useStore.getState().activeBoardIndex);
+      }
+    });
+
     return () => {
       socket.off('canvas-update-received');
       socket.off('canvas-clear-received');
+      socket.off('draw-pointer-received');
+      socket.off('user-joined');
     };
   }, [socket]);
 
@@ -395,11 +531,13 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
       return;
     }
 
+    const zoom = canvas.getZoom() || 1;
+    const width = canvas.getWidth() / zoom;
+    const height = canvas.getHeight() / zoom;
+
     if (type === 'grid') {
       canvas.backgroundColor = '#020617';
       const grid = 40;
-      const width = canvas.getWidth();
-      const height = canvas.getHeight();
 
       for (let i = 0; i < width; i += grid) {
         canvas.add(new fabric.Line([i, 0, i, height], {
@@ -425,8 +563,6 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
 
     if (type === 'coordinate') {
       canvas.backgroundColor = '#020617';
-      const width = canvas.getWidth();
-      const height = canvas.getHeight();
       const centerX = width / 2;
       const centerY = height / 2;
 
@@ -633,144 +769,146 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
       {/* HTML Drawing Canvas element */}
       <canvas id="whiteboard-canvas" className="w-full h-full block" />
 
-      {/* Floating Toolbar Panel */}
-      <div className="absolute left-4 top-4 flex flex-col gap-2 bg-slate-900/90 backdrop-blur border border-white/10 rounded-2xl p-2.5 shadow-2xl z-[100] select-none">
-        <button
-          onClick={() => setTool('pencil')}
-          className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
-            currentTool === 'pencil' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-          }`}
-          title="Pencil Brush"
-        >
-          <Brush size={18} />
-          <span className="text-[9px] font-bold">Pencil</span>
-        </button>
+      {/* Floating Toolbar Panel (Teachers only) */}
+      {user?.role === 'teacher' && (
+        <div className="absolute md:left-4 md:top-4 md:bottom-auto md:right-auto md:flex-col flex-row bottom-4 left-4 right-4 h-14 md:h-auto bg-slate-900/90 backdrop-blur border border-white/10 rounded-2xl p-2 md:p-2.5 shadow-2xl z-[100] flex items-center md:items-stretch gap-2 select-none overflow-x-auto scrollbar-none">
+          <button
+            onClick={() => setTool('pencil')}
+            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+              currentTool === 'pencil' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+            title="Pencil Brush"
+          >
+            <Brush size={18} />
+            <span className="text-[9px] font-bold hidden md:inline">Pencil</span>
+          </button>
 
-        <button
-          onClick={() => setTool('highlighter')}
-          className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
-            currentTool === 'highlighter' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-          }`}
-          title="Highlighter"
-        >
-          <Brush className="opacity-60" size={18} />
-          <span className="text-[9px] font-bold">Highlight</span>
-        </button>
+          <button
+            onClick={() => setTool('highlighter')}
+            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+              currentTool === 'highlighter' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+            title="Highlighter"
+          >
+            <Brush className="opacity-60" size={18} />
+            <span className="text-[9px] font-bold hidden md:inline">Highlight</span>
+          </button>
 
-        <button
-          onClick={() => setTool('eraser')}
-          className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
-            currentTool === 'eraser' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-          }`}
-          title="Object Eraser"
-        >
-          <Eraser size={18} />
-          <span className="text-[9px] font-bold">Eraser</span>
-        </button>
+          <button
+            onClick={() => setTool('eraser')}
+            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+              currentTool === 'eraser' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+            title="Object Eraser"
+          >
+            <Eraser size={18} />
+            <span className="text-[9px] font-bold hidden md:inline">Eraser</span>
+          </button>
 
-        <button
-          onClick={() => setTool('select')}
-          className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
-            currentTool === 'select' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-          }`}
-          title="Select Object"
-        >
-          <MousePointer size={18} />
-          <span className="text-[9px] font-bold">Select</span>
-        </button>
+          <button
+            onClick={() => setTool('select')}
+            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+              currentTool === 'select' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+            title="Select Object"
+          >
+            <MousePointer size={18} />
+            <span className="text-[9px] font-bold hidden md:inline">Select</span>
+          </button>
 
-        <button
-          onClick={() => setTool('rectangle')}
-          className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
-            currentTool === 'rectangle' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-          }`}
-          title="Rectangle"
-        >
-          <Square size={18} />
-          <span className="text-[9px] font-bold">Rect</span>
-        </button>
+          <button
+            onClick={() => setTool('rectangle')}
+            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+              currentTool === 'rectangle' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+            title="Rectangle"
+          >
+            <Square size={18} />
+            <span className="text-[9px] font-bold hidden md:inline">Rect</span>
+          </button>
 
-        <button
-          onClick={() => setTool('circle')}
-          className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
-            currentTool === 'circle' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-          }`}
-          title="Circle"
-        >
-          <Compass size={18} />
-          <span className="text-[9px] font-bold">Circle</span>
-        </button>
+          <button
+            onClick={() => setTool('circle')}
+            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+              currentTool === 'circle' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+            title="Circle"
+          >
+            <Compass size={18} />
+            <span className="text-[9px] font-bold hidden md:inline">Circle</span>
+          </button>
 
-        <button
-          onClick={() => setTool('text')}
-          className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
-            currentTool === 'text' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-          }`}
-          title="Text Label"
-        >
-          <Type size={18} />
-          <span className="text-[9px] font-bold">Text</span>
-        </button>
+          <button
+            onClick={() => setTool('text')}
+            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+              currentTool === 'text' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+            title="Text Label"
+          >
+            <Type size={18} />
+            <span className="text-[9px] font-bold hidden md:inline">Text</span>
+          </button>
 
-        <button
-          onClick={() => setTool('sticky')}
-          className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
-            currentTool === 'sticky' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-          }`}
-          title="Sticky Note"
-        >
-          <StickyNote size={18} />
-          <span className="text-[9px] font-bold">Note</span>
-        </button>
+          <button
+            onClick={() => setTool('sticky')}
+            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+              currentTool === 'sticky' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+            }`}
+            title="Sticky Note"
+          >
+            <StickyNote size={18} />
+            <span className="text-[9px] font-bold hidden md:inline">Note</span>
+          </button>
 
-        <div className="w-8 h-px bg-white/10 my-1 self-center" />
+          <div className="md:w-8 md:h-px w-px h-8 bg-white/10 mx-1 md:my-1 self-center flex-shrink-0" />
 
-        {/* Colors Picker */}
-        <div className="flex flex-col gap-1.5 items-center">
-          {colorsList.map((col) => (
+          {/* Colors Picker */}
+          <div className="flex md:flex-col flex-row gap-1.5 items-center">
+            {colorsList.map((col) => (
+              <button
+                key={col}
+                onClick={() => setColor(col)}
+                className="w-4 h-4 rounded-full border border-black/30 transition-all duration-200 flex-shrink-0"
+                style={{
+                  backgroundColor: col,
+                  transform: currentColor === col ? 'scale(1.2)' : 'none',
+                  borderColor: currentColor === col ? '#ffffff' : 'rgba(0,0,0,0.3)',
+                  boxShadow: currentColor === col ? '0 0 4px rgba(255,255,255,0.5)' : 'none'
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="md:w-8 md:h-px w-px h-8 bg-white/10 mx-1 md:my-1 self-center flex-shrink-0" />
+
+          {/* Action triggers */}
+          <div className="flex md:flex-col flex-row gap-2 items-center">
             <button
-              key={col}
-              onClick={() => setColor(col)}
-              className="w-4 h-4 rounded-full border border-black/30 transition-all duration-200"
-              style={{
-                backgroundColor: col,
-                transform: currentColor === col ? 'scale(1.2)' : 'none',
-                borderColor: currentColor === col ? '#ffffff' : 'rgba(0,0,0,0.3)',
-                boxShadow: currentColor === col ? '0 0 4px rgba(255,255,255,0.5)' : 'none'
-              }}
-            />
-          ))}
+              onClick={handleUndo}
+              disabled={undoStack.length <= 1}
+              className="p-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
+              title="Undo"
+            >
+              <Undo2 size={15} />
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={redoStack.length === 0}
+              className="p-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
+              title="Redo"
+            >
+              <Redo2 size={15} />
+            </button>
+            <button
+              onClick={handleClear}
+              className="p-1 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded transition-all"
+              title="Clear Board"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
         </div>
-
-        <div className="w-8 h-px bg-white/10 my-1 self-center" />
-
-        {/* Action triggers */}
-        <div className="flex flex-col gap-1 items-center">
-          <button
-            onClick={handleUndo}
-            disabled={undoStack.length <= 1}
-            className="p-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
-            title="Undo"
-          >
-            <Undo2 size={15} />
-          </button>
-          <button
-            onClick={handleRedo}
-            disabled={redoStack.length === 0}
-            className="p-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
-            title="Redo"
-          >
-            <Redo2 size={15} />
-          </button>
-          <button
-            onClick={handleClear}
-            className="p-1 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded transition-all"
-            title="Clear Board"
-          >
-            <Trash2 size={15} />
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

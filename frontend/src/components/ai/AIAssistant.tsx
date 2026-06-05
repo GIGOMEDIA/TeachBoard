@@ -27,7 +27,7 @@ export default function AIAssistant() {
   };
 
   return (
-    <div className="absolute right-0 top-0 bottom-0 w-80 bg-slate-900/98 backdrop-blur border-l border-white/10 flex flex-col z-[500] select-none shadow-2xl">
+    <div className="absolute right-0 top-0 bottom-0 w-full sm:w-80 bg-slate-900/98 backdrop-blur border-l border-white/10 flex flex-col z-[500] select-none shadow-2xl">
       {/* Header */}
       <div className="h-14 border-b border-white/5 flex items-center justify-between px-4">
         <div className="flex items-center gap-2 text-teal-400">

@@ -24,6 +24,14 @@ export default function Calculator() {
   const [coeffB, setCoeffB] = useState('-5');
   const [coeffC, setCoeffC] = useState('6');
   const [solverResult, setSolverResult] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   if (!isCalcVisible) return null;
 
@@ -146,10 +154,10 @@ export default function Calculator() {
 
   return (
     <div
-      style={{ left: calcPosition.x, top: calcPosition.y }}
+      style={!isMobile ? { left: calcPosition.x, top: calcPosition.y } : undefined}
       className={`absolute w-72 bg-slate-900/95 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden z-[1000] flex flex-col transition-all duration-100 ${
-        isCalcMinimized ? 'h-11' : ''
-      }`}
+        isMobile ? 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2' : ''
+      } ${isCalcMinimized ? 'h-11' : ''}`}
     >
       {/* Header */}
       <div

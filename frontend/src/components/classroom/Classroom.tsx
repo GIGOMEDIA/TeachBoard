@@ -423,8 +423,9 @@ export default function Classroom({ setView }: ClassroomProps) {
       handleBackgroundChange('coordinate');
     }
 
-    const centerX = canvas.getWidth() / 2;
-    const centerY = canvas.getHeight() / 2;
+    const zoom = canvas.getZoom() || 1;
+    const centerX = (canvas.getWidth() / zoom) / 2;
+    const centerY = (canvas.getHeight() / zoom) / 2;
     const step = 2; 
     const scale = 40; // 40px = 1 mathematical unit
     const points: { x: number, y: number }[] = [];
@@ -446,7 +447,7 @@ export default function Classroom({ setView }: ClassroomProps) {
       }
 
       const py = centerY - (y * scale);
-      if (py >= 0 && py <= canvas.getHeight()) {
+      if (py >= 0 && py <= (canvas.getHeight() / zoom)) {
         points.push({ x: px + centerX, y: py });
       }
     }
@@ -492,125 +493,167 @@ export default function Classroom({ setView }: ClassroomProps) {
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-950 overflow-hidden select-none relative">
       {/* Top Header navbar */}
-      <header className="h-14 bg-slate-900 border-b border-white/5 flex items-center justify-between px-4 z-[200]">
-        {/* Left header */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleExitClass}
-            className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-bold transition-all shadow"
-          >
-            Leave
-          </button>
-          <div className="bg-slate-800 border border-white/5 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-300">
-            Room Code: <span className="text-teal-400 font-mono tracking-wider">{roomCode}</span>
+      {/* Top Header navbar */}
+      <header className="h-auto md:h-14 bg-slate-900 border-b border-white/5 flex flex-col md:flex-row items-center justify-between p-2.5 md:px-4 gap-2 md:gap-0 z-[200]">
+        {/* Left header / Row 1 on mobile */}
+        <div className="flex items-center justify-between md:justify-start w-full md:w-auto gap-2 md:gap-3">
+          <div className="flex items-center gap-1.5 md:gap-3">
+            <button
+              onClick={handleExitClass}
+              className="px-2.5 md:px-3 py-1 md:py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-[10px] md:text-xs font-bold transition-all shadow flex-shrink-0"
+            >
+              Leave
+            </button>
+            <div className="bg-slate-800 border border-white/5 rounded-lg px-1.5 md:px-2.5 py-1 text-[10px] md:text-xs font-bold text-slate-300 flex-shrink-0">
+              <span className="md:inline hidden">Room Code: </span><span className="text-teal-400 font-mono tracking-wider">{roomCode}</span>
+            </div>
+
+            {/* Voice Broadcast Controls */}
+            {user?.role === 'teacher' ? (
+              <button
+                onClick={handleToggleVoiceBroadcast}
+                className={`flex items-center gap-1 px-1.5 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all shadow ${
+                  isBroadcastingVoice
+                    ? 'bg-teal-500 hover:bg-teal-400 text-slate-950 animate-pulse'
+                    : 'bg-slate-800 hover:bg-slate-700/80 border border-white/10 text-teal-400'
+                }`}
+              >
+                {isBroadcastingVoice ? <Mic size={13} /> : <MicOff size={13} />}
+                <span className="hidden sm:inline">{isBroadcastingVoice ? 'Voice Live' : 'Start Broadcast'}</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleToggleRequestSpeak}
+                className={`flex items-center gap-1 px-1.5 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all shadow ${
+                  isBroadcastingVoice
+                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse font-bold'
+                    : isVoicePending
+                    ? 'bg-slate-800 hover:bg-slate-700 border border-amber-500/30 text-amber-400'
+                    : 'bg-slate-800 hover:bg-slate-700/80 border border-white/10 text-slate-300 hover:text-white'
+                }`}
+              >
+                {isBroadcastingVoice ? (
+                  <>
+                    <Mic size={13} />
+                    <span className="hidden sm:inline">Stop Speaking</span>
+                  </>
+                ) : isVoicePending ? (
+                  <>
+                    <div className="w-2 h-2 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                    <span className="hidden sm:inline">Cancel Request</span>
+                  </>
+                ) : (
+                  <>
+                    <MicOff size={13} />
+                    <span className="hidden sm:inline">Request to Speak</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Voice Error Notification */}
+            {voiceError && (
+              <div className="text-[9px] md:text-[10px] text-red-400 font-semibold bg-red-950/20 border border-red-500/20 rounded-lg px-2 py-1 max-w-[80px] sm:max-w-[150px] md:max-w-[200px] truncate">
+                Mic Error: {voiceError}
+              </div>
+            )}
           </div>
 
-          {/* Voice Broadcast Controls */}
-          {user?.role === 'teacher' ? (
+          {/* Widget controllers inside row 1 on mobile to save space */}
+          <div className="flex md:hidden gap-1">
             <button
-              onClick={handleToggleVoiceBroadcast}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow ${
-                isBroadcastingVoice
-                  ? 'bg-teal-500 hover:bg-teal-400 text-slate-950 animate-pulse'
-                  : 'bg-slate-800 hover:bg-slate-700/80 border border-white/10 text-teal-400'
+              onClick={() => setCalcVisible(!isCalcVisible)}
+              className={`p-1.5 rounded-lg border transition-all ${
+                isCalcVisible ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-slate-800 border-white/10 text-slate-300'
               }`}
+              title="Scientific Calculator"
             >
-              {isBroadcastingVoice ? <Mic size={14} /> : <MicOff size={14} />}
-              {isBroadcastingVoice ? 'Voice Live' : 'Start Broadcast'}
+              <CalcIcon size={14} />
             </button>
-          ) : (
             <button
-              onClick={handleToggleRequestSpeak}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow ${
-                isBroadcastingVoice
-                  ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse font-bold'
-                  : isVoicePending
-                  ? 'bg-slate-800 hover:bg-slate-700 border border-amber-500/30 text-amber-400'
-                  : 'bg-slate-800 hover:bg-slate-700/80 border border-white/10 text-slate-300 hover:text-white'
+              onClick={() => setAIPanelVisible(!isAIPanelVisible)}
+              className={`p-1.5 rounded-lg border transition-all ${
+                isAIPanelVisible ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-slate-800 border-white/10 text-slate-300'
               }`}
+              title="AI Assistant"
             >
-              {isBroadcastingVoice ? (
-                <>
-                  <Mic size={14} />
-                  <span>Stop Speaking</span>
-                </>
-              ) : isVoicePending ? (
-                <>
-                  <div className="w-2.5 h-2.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-                  <span>Cancel Request</span>
-                </>
-              ) : (
-                <>
-                  <MicOff size={14} />
-                  <span>Request to Speak</span>
-                </>
-              )}
+              <Brain size={14} />
             </button>
-          )}
+            <button
+              onClick={() => setRosterVisible(!isRosterVisible)}
+              className={`p-1.5 rounded-lg border transition-all ${
+                isRosterVisible ? 'bg-primary/10 border-primary/30 text-primary-light' : 'bg-slate-800 border-white/10 text-slate-300'
+              }`}
+              title="Classroom Sidebar"
+            >
+              <Users size={14} />
+            </button>
+          </div>
+        </div>
 
-          {/* Voice Error Notification */}
-          {voiceError && (
-            <div className="text-[10px] text-red-400 font-semibold bg-red-950/20 border border-red-500/20 rounded-lg px-2 py-1 max-w-[200px] truncate">
-              Mic Error: {voiceError}
+        {/* Multi Board / Background select / Row 2 on mobile */}
+        <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-3 md:gap-4">
+          {/* Multi Board index toggler */}
+          <div className="flex bg-black/30 p-0.5 rounded-lg border border-white/5 text-[10px] md:text-[11px] font-semibold text-slate-400">
+            {[0, 1, 2].map((idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSwitchBoardLocal(idx)}
+                className={`px-2 md:px-3 py-1 md:py-1.5 rounded-md transition-all ${
+                  activeBoardIndex === idx ? 'bg-primary text-white shadow font-bold' : 'hover:text-slate-200'
+                }`}
+              >
+                <span className="hidden md:inline">Board {idx + 1}</span>
+                <span className="inline md:hidden">B{idx + 1}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Board Background select & desktop widget controls */}
+          <div className="flex items-center gap-2">
+            {user?.role === 'teacher' && (
+              <select
+                value={backgroundType}
+                onChange={(e) => handleBackgroundChange(e.target.value as any)}
+                className="bg-slate-800 border border-white/10 text-[10px] md:text-xs text-slate-300 rounded-lg px-2 py-1 md:py-1.5 outline-none focus:border-primary/50 max-w-[80px] md:max-w-none"
+              >
+                <option value="grid">Grid</option>
+                <option value="blank">Blank</option>
+                <option value="coordinate">Axes</option>
+              </select>
+            )}
+
+            {/* Desktop-only Widget controllers */}
+            <div className="hidden md:flex gap-2">
+              <button
+                onClick={() => setCalcVisible(!isCalcVisible)}
+                className={`p-2 rounded-lg border transition-all ${
+                  isCalcVisible ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-slate-800 border-white/10 text-slate-300 hover:text-white'
+                }`}
+                title="Scientific Calculator"
+              >
+                <CalcIcon size={16} />
+              </button>
+              <button
+                onClick={() => setAIPanelVisible(!isAIPanelVisible)}
+                className={`p-2 rounded-lg border transition-all ${
+                  isAIPanelVisible ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-slate-800 border-white/10 text-slate-300 hover:text-white'
+                }`}
+                title="AI Assistant"
+              >
+                <Brain size={16} />
+              </button>
+              <button
+                onClick={() => setRosterVisible(!isRosterVisible)}
+                className={`p-2 rounded-lg border transition-all ${
+                  isRosterVisible ? 'bg-primary/10 border-primary/30 text-primary-light' : 'bg-slate-800 border-white/10 text-slate-300 hover:text-white'
+                }`}
+                title="Classroom Sidebar"
+              >
+                <Users size={16} />
+              </button>
             </div>
-          )}
-        </div>
-
-        {/* Multi Board index toggler */}
-        <div className="flex bg-black/30 p-0.5 rounded-lg border border-white/5 text-[11px] font-semibold text-slate-400">
-          {[0, 1, 2].map((idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSwitchBoardLocal(idx)}
-              className={`px-3 py-1.5 rounded-md transition-all ${
-                activeBoardIndex === idx ? 'bg-primary text-white shadow' : 'hover:text-slate-200'
-              }`}
-            >
-              Board {idx + 1}
-            </button>
-          ))}
-        </div>
-
-        {/* Board Background select */}
-        <div className="flex gap-2">
-          <select
-            value={backgroundType}
-            onChange={(e) => handleBackgroundChange(e.target.value as any)}
-            className="bg-slate-800 border border-white/10 text-xs text-slate-300 rounded-lg px-2 py-1.5 outline-none focus:border-primary/50"
-          >
-            <option value="grid">Grid Board</option>
-            <option value="blank">Blank Board</option>
-            <option value="coordinate">Graph Axes</option>
-          </select>
-
-          {/* Widget panels controllers */}
-          <button
-            onClick={() => setCalcVisible(!isCalcVisible)}
-            className={`p-2 rounded-lg border transition-all ${
-              isCalcVisible ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-slate-800 border-white/10 text-slate-300 hover:text-white'
-            }`}
-            title="Scientific Calculator"
-          >
-            <CalcIcon size={16} />
-          </button>
-          <button
-            onClick={() => setAIPanelVisible(!isAIPanelVisible)}
-            className={`p-2 rounded-lg border transition-all ${
-              isAIPanelVisible ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-slate-800 border-white/10 text-slate-300 hover:text-white'
-            }`}
-            title="AI Assistant"
-          >
-            <Brain size={16} />
-          </button>
-          <button
-            onClick={() => setRosterVisible(!isRosterVisible)}
-            className={`p-2 rounded-lg border transition-all ${
-              isRosterVisible ? 'bg-primary/10 border-primary/30 text-primary-light' : 'bg-slate-800 border-white/10 text-slate-300 hover:text-white'
-            }`}
-            title="Classroom Sidebar"
-          >
-            <Users size={16} />
-          </button>
+          </div>
         </div>
       </header>
 
@@ -619,13 +662,15 @@ export default function Classroom({ setView }: ClassroomProps) {
         {/* Fabric drawing board */}
         <Whiteboard canvasRef={canvasRef} />
 
-        {/* Draggable Math graph plotting trigger */}
-        <button
-          onClick={() => setMathModalVisible(true)}
-          className="absolute bottom-6 left-6 bg-teal-500 text-slate-950 px-4 py-2.5 rounded-xl font-bold text-xs hover:bg-teal-400 transition-all shadow-xl flex items-center gap-1.5 z-[100]"
-        >
-          <Plus size={16} /> Plot Functions
-        </button>
+        {/* Draggable Math graph plotting trigger (Teachers only) */}
+        {user?.role === 'teacher' && (
+          <button
+            onClick={() => setMathModalVisible(true)}
+            className="absolute bottom-6 left-6 bg-teal-500 text-slate-950 px-4 py-2.5 rounded-xl font-bold text-xs hover:bg-teal-400 transition-all shadow-xl flex items-center gap-1.5 z-[100]"
+          >
+            <Plus size={16} /> Plot Functions
+          </button>
+        )}
 
         {/* Floating draggable widgets */}
         <Calculator />
@@ -635,7 +680,7 @@ export default function Classroom({ setView }: ClassroomProps) {
 
         {/* Roster & Collaboration sidebar */}
         {isRosterVisible && (
-          <div className="absolute right-0 top-0 bottom-0 w-72 bg-slate-900/98 backdrop-blur border-l border-white/10 flex flex-col z-[500] shadow-2xl">
+          <div className="absolute right-0 top-0 bottom-0 w-full sm:w-72 bg-slate-900/98 backdrop-blur border-l border-white/10 flex flex-col z-[500] shadow-2xl">
             {/* Header */}
             <div className="h-14 border-b border-white/5 flex items-center justify-between px-4">
               <span className="text-slate-200 text-sm font-bold">Classroom Activity</span>
