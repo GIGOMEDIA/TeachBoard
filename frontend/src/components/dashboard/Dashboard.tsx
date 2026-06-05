@@ -277,9 +277,18 @@ export default function Dashboard({ setView }: DashboardProps) {
 
           {/* Right panel - Available lessons / rooms history */}
           <div className="w-full md:w-80 flex flex-col gap-3">
-            <span className="text-[10px] text-slate-500 font-bold tracking-wide uppercase">
-              {user?.role === 'teacher' ? 'Your Active Sessions' : 'Available Active Rooms'}
-            </span>
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] text-slate-500 font-bold tracking-wide uppercase">
+                {user?.role === 'teacher' ? 'Your Active Sessions' : 'Available Active Rooms'}
+              </span>
+              <button
+                onClick={fetchDashboardStats}
+                className="text-[10px] text-teal-400 hover:text-teal-300 font-bold transition-all"
+                title="Refresh sessions list"
+              >
+                Refresh
+              </button>
+            </div>
 
             <div className="flex flex-col gap-2.5 max-h-[360px] overflow-y-auto pr-1">
               {user?.role === 'teacher' ? (
