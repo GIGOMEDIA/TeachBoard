@@ -304,7 +304,12 @@ export const useStore = create<TeachBoardState>((set, get) => ({
         body: JSON.stringify({ action, topic, context })
       });
 
-      if (!response.ok) throw new Error('AI assistant response failure');
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          get().logout();
+        }
+        throw new Error('AI assistant response failure');
+      }
 
       const resData = await response.json();
       

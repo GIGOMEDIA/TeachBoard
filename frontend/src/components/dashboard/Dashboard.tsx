@@ -38,6 +38,9 @@ export default function Dashboard({ setView }: DashboardProps) {
         setStats(data);
       } else {
         console.error(data.error);
+        if (response.status === 401 || response.status === 403) {
+          logout();
+        }
       }
     } catch (err) {
       console.warn('Dashboard stats fetch failed, using fallback mocks', err);
@@ -110,6 +113,9 @@ export default function Dashboard({ setView }: DashboardProps) {
         setView('classroom');
       } else {
         alert(data.error || 'Failed to create classroom');
+        if (response.status === 401 || response.status === 403) {
+          logout();
+        }
       }
     } catch (err) {
       alert('Failed to connect to backend server');
