@@ -133,7 +133,7 @@ export default function Dashboard({ setView }: DashboardProps) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 flex flex-col p-6 overflow-y-auto">
+    <div className="min-h-[100dvh] w-full bg-slate-950 flex flex-col p-6 overflow-y-auto">
       {/* Header */}
       <header className="flex justify-between items-center pb-6 border-b border-white/5">
         <div>

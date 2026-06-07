@@ -146,7 +146,7 @@ export default function Calculator() {
     <button
       key={label}
       onClick={() => handlePressButton(label)}
-      className={`h-9 rounded-lg font-semibold text-sm transition-all select-none ${className}`}
+      className={`h-11 sm:h-9 rounded-lg font-semibold text-sm transition-all select-none ${className}`}
     >
       {label}
     </button>
@@ -282,7 +282,7 @@ export default function Calculator() {
                     type="number"
                     value={coeffA}
                     onChange={(e) => setCoeffA(e.target.value)}
-                    className="w-32 h-8 bg-black/30 border border-white/10 rounded-lg text-center text-xs text-white outline-none focus:border-teal-500/50"
+                    className="w-32 h-11 sm:h-8 bg-black/30 border border-white/10 rounded-xl sm:rounded-lg text-center text-sm sm:text-xs text-white outline-none focus:border-teal-500/50"
                   />
                 </div>
                 <div className="flex items-center justify-between gap-4">
@@ -291,7 +291,7 @@ export default function Calculator() {
                     type="number"
                     value={coeffB}
                     onChange={(e) => setCoeffB(e.target.value)}
-                    className="w-32 h-8 bg-black/30 border border-white/10 rounded-lg text-center text-xs text-white outline-none focus:border-teal-500/50"
+                    className="w-32 h-11 sm:h-8 bg-black/30 border border-white/10 rounded-xl sm:rounded-lg text-center text-sm sm:text-xs text-white outline-none focus:border-teal-500/50"
                   />
                 </div>
                 <div className="flex items-center justify-between gap-4">
@@ -300,12 +300,12 @@ export default function Calculator() {
                     type="number"
                     value={coeffC}
                     onChange={(e) => setCoeffC(e.target.value)}
-                    className="w-32 h-8 bg-black/30 border border-white/10 rounded-lg text-center text-xs text-white outline-none focus:border-teal-500/50"
+                    className="w-32 h-11 sm:h-8 bg-black/30 border border-white/10 rounded-xl sm:rounded-lg text-center text-sm sm:text-xs text-white outline-none focus:border-teal-500/50"
                   />
                 </div>
                 <button
                   onClick={solveQuadratic}
-                  className="mt-2 bg-teal-500 text-slate-950 font-bold text-xs py-2 rounded-lg hover:bg-teal-400 transition-all"
+                  className="mt-2 bg-teal-500 text-slate-950 font-bold text-xs h-11 sm:h-9 flex items-center justify-center rounded-xl sm:rounded-lg hover:bg-teal-400 transition-all w-full"
                 >
                   Calculate Roots
                 </button>

@@ -102,7 +102,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 flex flex-col justify-center items-center px-4 select-none">
+    <div className="min-h-[100dvh] w-full bg-slate-950 flex flex-col justify-center items-center px-4 select-none">
       {/* Brand */}
       <div className="flex flex-col items-center mb-8">
         <h1 className="text-primary text-4xl font-extrabold tracking-tight">TeachBoard</h1>

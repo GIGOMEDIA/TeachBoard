@@ -530,7 +530,7 @@ export default function Classroom({ setView }: ClassroomProps) {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-slate-950 overflow-hidden select-none relative">
+    <div className="h-[100dvh] w-screen flex flex-col bg-slate-950 overflow-hidden select-none relative">
       {/* Top Header navbar */}
       {/* Top Header navbar */}
       <header className="h-auto md:h-14 bg-slate-900 border-b border-white/5 flex flex-col md:flex-row items-center justify-between p-2.5 md:px-4 gap-2 md:gap-0 z-[200]">
@@ -539,11 +539,11 @@ export default function Classroom({ setView }: ClassroomProps) {
           <div className="flex items-center gap-1.5 md:gap-3">
             <button
               onClick={handleExitClass}
-              className="px-2.5 md:px-3 py-1 md:py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-[10px] md:text-xs font-bold transition-all shadow flex-shrink-0"
+              className="h-10 md:h-9 px-3.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-all shadow flex-shrink-0 flex items-center justify-center"
             >
               Leave
             </button>
-            <div className="bg-slate-800 border border-white/5 rounded-lg px-1.5 md:px-2.5 py-1 text-[10px] md:text-xs font-bold text-slate-300 flex-shrink-0">
+            <div className="bg-slate-800 border border-white/5 rounded-xl px-2.5 h-10 md:h-9 text-xs font-bold text-slate-300 flex-shrink-0 flex items-center justify-center">
               <span className="md:inline hidden">Room Code: </span><span className="text-teal-400 font-mono tracking-wider">{roomCode}</span>
             </div>
 
@@ -551,19 +551,19 @@ export default function Classroom({ setView }: ClassroomProps) {
             {user?.role === 'teacher' ? (
               <button
                 onClick={handleToggleVoiceBroadcast}
-                className={`flex items-center gap-1 px-1.5 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all shadow ${
+                className={`flex items-center gap-1.5 px-3.5 h-10 md:h-9 rounded-xl text-xs font-bold transition-all shadow ${
                   isBroadcastingVoice
                     ? 'bg-teal-500 hover:bg-teal-400 text-slate-950 animate-pulse'
                     : 'bg-slate-800 hover:bg-slate-700/80 border border-white/10 text-teal-400'
                 }`}
               >
-                {isBroadcastingVoice ? <Mic size={13} /> : <MicOff size={13} />}
+                {isBroadcastingVoice ? <Mic size={14} /> : <MicOff size={14} />}
                 <span className="hidden sm:inline">{isBroadcastingVoice ? 'Voice Live' : 'Start Broadcast'}</span>
               </button>
             ) : (
               <button
                 onClick={handleToggleRequestSpeak}
-                className={`flex items-center gap-1 px-1.5 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all shadow ${
+                className={`flex items-center gap-1.5 px-3.5 h-10 md:h-9 rounded-xl text-xs font-bold transition-all shadow ${
                   isBroadcastingVoice
                     ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse font-bold'
                     : isVoicePending
@@ -821,20 +821,20 @@ export default function Classroom({ setView }: ClassroomProps) {
 
                     {/* Ask question input */}
                     {user?.role === 'student' && (
-                      <div className="flex gap-1.5 mt-2">
+                      <div className="flex gap-1.5 mt-2 flex-shrink-0">
                         <input
                           type="text"
                           value={questionInput}
                           onChange={(e) => setQuestionInput(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleSendQuestion()}
                           placeholder="Ask the instructor..."
-                          className="flex-1 h-8 bg-black/40 border border-white/10 rounded-lg px-2.5 text-xs text-white outline-none focus:border-teal-500/50"
+                          className="flex-1 h-11 md:h-8 bg-black/40 border border-white/10 rounded-xl md:rounded-lg px-3.5 md:px-2.5 text-sm md:text-xs text-white outline-none focus:border-teal-500/50"
                         />
                         <button
                           onClick={handleSendQuestion}
-                          className="w-8 h-8 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-lg flex items-center justify-center transition-all"
+                          className="w-11 h-11 md:w-8 md:h-8 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-xl md:rounded-lg flex items-center justify-center transition-all flex-shrink-0"
                         >
-                          <Plus size={14} />
+                          <Plus size={16} />
                         </button>
                       </div>
                     )}
@@ -855,20 +855,20 @@ export default function Classroom({ setView }: ClassroomProps) {
                     ))}
                   </div>
 
-                  <div className="flex gap-1.5 mt-2">
+                  <div className="flex gap-1.5 mt-2 flex-shrink-0">
                     <input
                       type="text"
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
                       placeholder="Type message..."
-                      className="flex-1 h-8 bg-black/40 border border-white/10 rounded-lg px-2.5 text-xs text-white outline-none focus:border-primary/50"
+                      className="flex-1 h-11 md:h-8 bg-black/40 border border-white/10 rounded-xl md:rounded-lg px-3.5 md:px-2.5 text-sm md:text-xs text-white outline-none focus:border-primary/50"
                     />
                     <button
                       onClick={handleSendChat}
-                      className="w-8 h-8 bg-primary hover:bg-primary-light text-white rounded-lg flex items-center justify-center transition-all"
+                      className="w-11 h-11 md:w-8 md:h-8 bg-primary hover:bg-primary-light text-white rounded-xl md:rounded-lg flex items-center justify-center transition-all flex-shrink-0"
                     >
-                      <Send size={12} />
+                      <Send size={14} />
                     </button>
                   </div>
                 </div>

@@ -791,140 +791,140 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
 
       {/* Floating Toolbar Panel (Teachers only) */}
       {user?.role === 'teacher' && (
-        <div className="absolute md:left-4 md:top-4 md:bottom-auto md:right-auto md:flex-col flex-row bottom-4 left-4 right-4 h-14 md:h-auto bg-slate-900/90 backdrop-blur border border-white/10 rounded-2xl p-2 md:p-2.5 shadow-2xl z-[100] flex items-center md:items-stretch gap-2 select-none overflow-x-auto scrollbar-none">
+        <div className="absolute md:left-4 md:top-4 md:bottom-auto md:right-auto md:flex-col flex-row bottom-4 left-4 right-4 h-16 md:h-auto bg-slate-900/90 backdrop-blur border border-white/10 rounded-2xl p-2.5 md:p-2.5 shadow-2xl z-[100] flex items-center md:items-stretch gap-2.5 select-none overflow-x-auto scrollbar-none">
           <button
             onClick={() => setTool('pencil')}
-            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`p-3 md:p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 flex-shrink-0 ${
               currentTool === 'pencil' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
             title="Pencil Brush"
           >
-            <Brush size={18} />
+            <Brush size={20} />
             <span className="text-[9px] font-bold hidden md:inline">Pencil</span>
           </button>
 
           <button
             onClick={() => setTool('highlighter')}
-            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`p-3 md:p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 flex-shrink-0 ${
               currentTool === 'highlighter' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
             title="Highlighter"
           >
-            <Brush className="opacity-60" size={18} />
+            <Brush className="opacity-60" size={20} />
             <span className="text-[9px] font-bold hidden md:inline">Highlight</span>
           </button>
 
           <button
             onClick={() => setTool('eraser')}
-            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`p-3 md:p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 flex-shrink-0 ${
               currentTool === 'eraser' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
             title="Object Eraser"
           >
-            <Eraser size={18} />
+            <Eraser size={20} />
             <span className="text-[9px] font-bold hidden md:inline">Eraser</span>
           </button>
 
           <button
             onClick={() => setTool('select')}
-            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`p-3 md:p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 flex-shrink-0 ${
               currentTool === 'select' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
             title="Select Object"
           >
-            <MousePointer size={18} />
+            <MousePointer size={20} />
             <span className="text-[9px] font-bold hidden md:inline">Select</span>
           </button>
 
           <button
             onClick={() => setTool('rectangle')}
-            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`p-3 md:p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 flex-shrink-0 ${
               currentTool === 'rectangle' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
             title="Rectangle"
           >
-            <Square size={18} />
+            <Square size={20} />
             <span className="text-[9px] font-bold hidden md:inline">Rect</span>
           </button>
 
           <button
             onClick={() => setTool('circle')}
-            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`p-3 md:p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 flex-shrink-0 ${
               currentTool === 'circle' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
             title="Circle"
           >
-            <Compass size={18} />
+            <Compass size={20} />
             <span className="text-[9px] font-bold hidden md:inline">Circle</span>
           </button>
 
           <button
             onClick={() => setTool('text')}
-            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`p-3 md:p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 flex-shrink-0 ${
               currentTool === 'text' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
             title="Text Label"
           >
-            <Type size={18} />
+            <Type size={20} />
             <span className="text-[9px] font-bold hidden md:inline">Text</span>
           </button>
 
           <button
             onClick={() => setTool('sticky')}
-            className={`p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 ${
+            className={`p-3 md:p-2.5 rounded-xl transition-all flex flex-col items-center gap-1 flex-shrink-0 ${
               currentTool === 'sticky' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
             }`}
             title="Sticky Note"
           >
-            <StickyNote size={18} />
+            <StickyNote size={20} />
             <span className="text-[9px] font-bold hidden md:inline">Note</span>
           </button>
 
-          <div className="md:w-8 md:h-px w-px h-8 bg-white/10 mx-1 md:my-1 self-center flex-shrink-0" />
+          <div className="md:w-8 md:h-px w-px h-8 bg-white/10 mx-1.5 md:my-1 self-center flex-shrink-0" />
 
           {/* Colors Picker */}
-          <div className="flex md:flex-col flex-row gap-1.5 items-center">
+          <div className="flex md:flex-col flex-row gap-2 items-center">
             {colorsList.map((col) => (
               <button
                 key={col}
                 onClick={() => setColor(col)}
-                className="w-4 h-4 rounded-full border border-black/30 transition-all duration-200 flex-shrink-0"
+                className="w-7 h-7 md:w-4 md:h-4 rounded-full border border-black/30 transition-all duration-200 flex-shrink-0"
                 style={{
                   backgroundColor: col,
-                  transform: currentColor === col ? 'scale(1.2)' : 'none',
+                  transform: currentColor === col ? 'scale(1.25)' : 'none',
                   borderColor: currentColor === col ? '#ffffff' : 'rgba(0,0,0,0.3)',
-                  boxShadow: currentColor === col ? '0 0 4px rgba(255,255,255,0.5)' : 'none'
+                  boxShadow: currentColor === col ? '0 0 5px rgba(255,255,255,0.6)' : 'none'
                 }}
               />
             ))}
           </div>
 
-          <div className="md:w-8 md:h-px w-px h-8 bg-white/10 mx-1 md:my-1 self-center flex-shrink-0" />
+          <div className="md:w-8 md:h-px w-px h-8 bg-white/10 mx-1.5 md:my-1 self-center flex-shrink-0" />
 
           {/* Action triggers */}
-          <div className="flex md:flex-col flex-row gap-2 items-center">
+          <div className="flex md:flex-col flex-row gap-2.5 items-center">
             <button
               onClick={handleUndo}
               disabled={undoStack.length <= 1}
-              className="p-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
+              className="p-2.5 md:p-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all flex-shrink-0"
               title="Undo"
             >
-              <Undo2 size={15} />
+              <Undo2 size={18} />
             </button>
             <button
               onClick={handleRedo}
               disabled={redoStack.length === 0}
-              className="p-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
+              className="p-2.5 md:p-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all flex-shrink-0"
               title="Redo"
             >
-              <Redo2 size={15} />
+              <Redo2 size={18} />
             </button>
             <button
               onClick={handleClear}
-              className="p-1 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded transition-all"
+              className="p-2.5 md:p-1 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded-xl md:rounded transition-all flex-shrink-0"
               title="Clear Board"
             >
-              <Trash2 size={15} />
+              <Trash2 size={18} />
             </button>
           </div>
         </div>
