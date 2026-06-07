@@ -15,7 +15,9 @@ import {
   CheckCircle,
   Mic,
   MicOff,
-  Volume2
+  Volume2,
+  PenTool,
+  MessageSquare
 } from 'lucide-react';
 
 interface ClassroomProps {
@@ -54,6 +56,43 @@ export default function Classroom({ setView }: ClassroomProps) {
   const [isRosterVisible, setRosterVisible] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [questionInput, setQuestionInput] = useState('');
+
+  // Mobile responsiveness states
+  const [isMobile, setIsMobile] = useState(false);
+  const [activeMobileTab, setActiveMobileTab] = useState<'board' | 'chat' | 'roster' | 'ai'>('board');
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleMobileTabChange = (tab: 'board' | 'chat' | 'roster' | 'ai') => {
+    setActiveMobileTab(tab);
+    if (tab === 'board') {
+      setRosterVisible(false);
+      setAIPanelVisible(false);
+    } else if (tab === 'chat' || tab === 'roster') {
+      setRosterVisible(true);
+      setAIPanelVisible(false);
+    } else if (tab === 'ai') {
+      setRosterVisible(false);
+      setAIPanelVisible(true);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAIPanelVisible && activeMobileTab === 'ai') {
+      setActiveMobileTab('board');
+    }
+  }, [isAIPanelVisible]);
+
+  useEffect(() => {
+    if (!isRosterVisible && (activeMobileTab === 'chat' || activeMobileTab === 'roster')) {
+      setActiveMobileTab('board');
+    }
+  }, [isRosterVisible]);
 
   // Voice States
   const [isBroadcastingVoice, setIsBroadcastingVoice] = useState(false);
@@ -559,36 +598,6 @@ export default function Classroom({ setView }: ClassroomProps) {
             )}
           </div>
 
-          {/* Widget controllers inside row 1 on mobile to save space */}
-          <div className="flex md:hidden gap-1">
-            <button
-              onClick={() => setCalcVisible(!isCalcVisible)}
-              className={`p-1.5 rounded-lg border transition-all ${
-                isCalcVisible ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-slate-800 border-white/10 text-slate-300'
-              }`}
-              title="Scientific Calculator"
-            >
-              <CalcIcon size={14} />
-            </button>
-            <button
-              onClick={() => setAIPanelVisible(!isAIPanelVisible)}
-              className={`p-1.5 rounded-lg border transition-all ${
-                isAIPanelVisible ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-slate-800 border-white/10 text-slate-300'
-              }`}
-              title="AI Assistant"
-            >
-              <Brain size={14} />
-            </button>
-            <button
-              onClick={() => setRosterVisible(!isRosterVisible)}
-              className={`p-1.5 rounded-lg border transition-all ${
-                isRosterVisible ? 'bg-primary/10 border-primary/30 text-primary-light' : 'bg-slate-800 border-white/10 text-slate-300'
-              }`}
-              title="Classroom Sidebar"
-            >
-              <Users size={14} />
-            </button>
-          </div>
         </div>
 
         {/* Multi Board / Background select / Row 2 on mobile */}
@@ -611,6 +620,17 @@ export default function Classroom({ setView }: ClassroomProps) {
 
           {/* Board Background select & desktop widget controls */}
           <div className="flex items-center gap-2">
+            {/* Mobile Calculator trigger */}
+            <button
+              onClick={() => setCalcVisible(!isCalcVisible)}
+              className={`md:hidden p-1.5 rounded-lg border transition-all ${
+                isCalcVisible ? 'bg-teal-500/10 border-teal-500/30 text-teal-400' : 'bg-slate-800 border-white/10 text-slate-300'
+              }`}
+              title="Scientific Calculator"
+            >
+              <CalcIcon size={13} />
+            </button>
+
             {user?.role === 'teacher' && (
               <select
                 value={backgroundType}
@@ -683,9 +703,14 @@ export default function Classroom({ setView }: ClassroomProps) {
           <div className="absolute right-0 top-0 bottom-0 w-full sm:w-72 bg-slate-900/98 backdrop-blur border-l border-white/10 flex flex-col z-[500] shadow-2xl">
             {/* Header */}
             <div className="h-14 border-b border-white/5 flex items-center justify-between px-4">
-              <span className="text-slate-200 text-sm font-bold">Classroom Activity</span>
+              <span className="text-slate-200 text-sm font-bold">
+                {isMobile && activeMobileTab === 'chat' ? 'Class Chat' : 'Classroom Activity'}
+              </span>
               <button
-                onClick={() => setRosterVisible(false)}
+                onClick={() => {
+                  setRosterVisible(false);
+                  setActiveMobileTab('board');
+                }}
                 className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200 transition-all"
               >
                 <X size={18} />
@@ -693,153 +718,161 @@ export default function Classroom({ setView }: ClassroomProps) {
             </div>
 
             {/* Attendance scroll roster */}
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 scrollbar-thin">
-              {/* Users list */}
-              <div>
-                <span className="text-[10px] text-slate-500 font-bold tracking-wide uppercase">Active Members ({joinedUsers.length})</span>
-                <div className="flex flex-col gap-1.5 mt-2">
-                  {joinedUsers.map((u) => (
-                    <div key={u.socketId} className="flex flex-col border-b border-white/5 py-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${u.role === 'teacher' ? 'bg-sky-400' : 'bg-green-400'}`} />
-                          <span className="text-slate-300 font-medium">{u.name} {u.role === 'teacher' ? '(Teacher)' : ''}</span>
+            <div className={`flex-grow p-4 flex flex-col scrollbar-thin ${isMobile ? 'h-full overflow-hidden' : 'flex-1 overflow-y-auto gap-4'}`}>
+              
+              {/* Roster Panel (Active members & Questions) */}
+              {(!isMobile || activeMobileTab === 'roster') && (
+                <div className="flex-1 overflow-y-auto flex flex-col gap-4 scrollbar-thin">
+                  {/* Users list */}
+                  <div>
+                    <span className="text-[10px] text-slate-500 font-bold tracking-wide uppercase">Active Members ({joinedUsers.length})</span>
+                    <div className="flex flex-col gap-1.5 mt-2">
+                      {joinedUsers.map((u) => (
+                        <div key={u.socketId} className="flex flex-col border-b border-white/5 py-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${u.role === 'teacher' ? 'bg-sky-400' : 'bg-green-400'}`} />
+                              <span className="text-slate-300 font-medium">{u.name} {u.role === 'teacher' ? '(Teacher)' : ''}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              {u.handRaised && (
+                                <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded text-[9px] font-bold">
+                                  <Hand size={8} /> Hand
+                                </span>
+                              )}
+                              {u.isSpeaking && (
+                                <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-teal-500/10 border border-teal-500/20 text-teal-400 rounded text-[9px] font-bold animate-pulse">
+                                  <Volume2 size={8} /> Voice Live
+                                </span>
+                              )}
+                              {u.requestToSpeak && (
+                                <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded text-[9px] font-bold">
+                                  <Mic size={8} /> Speak Req
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Teacher speaking approval controls */}
+                          {user?.role === 'teacher' && u.role === 'student' && (
+                            <div className="flex gap-1.5 mt-1.5 ml-4">
+                              {u.requestToSpeak && (
+                                <>
+                                  <button
+                                    onClick={() => approveSpeakRequest(u.socketId)}
+                                    className="px-2 py-0.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-[10px] font-bold rounded transition-all shadow"
+                                  >
+                                    Allow Voice
+                                  </button>
+                                  <button
+                                    onClick={() => rejectSpeakRequest(u.socketId)}
+                                    className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-[10px] font-bold rounded transition-all shadow"
+                                  >
+                                    Decline
+                                  </button>
+                                </>
+                              )}
+                              {u.isSpeaking && (
+                                <button
+                                  onClick={() => revokeSpeak(u.socketId)}
+                                  className="px-2 py-0.5 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold rounded transition-all shadow"
+                                >
+                                  Mute Mic
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          {u.handRaised && (
-                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded text-[9px] font-bold">
-                              <Hand size={8} /> Hand
-                            </span>
-                          )}
-                          {u.isSpeaking && (
-                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-teal-500/10 border border-teal-500/20 text-teal-400 rounded text-[9px] font-bold animate-pulse">
-                              <Volume2 size={8} /> Voice Live
-                            </span>
-                          )}
-                          {u.requestToSpeak && (
-                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded text-[9px] font-bold">
-                              <Mic size={8} /> Speak Req
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Teacher speaking approval controls */}
-                      {user?.role === 'teacher' && u.role === 'student' && (
-                        <div className="flex gap-1.5 mt-1.5 ml-4">
-                          {u.requestToSpeak && (
-                            <>
-                              <button
-                                onClick={() => approveSpeakRequest(u.socketId)}
-                                className="px-2 py-0.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-[10px] font-bold rounded transition-all shadow"
-                              >
-                                Allow Voice
-                              </button>
-                              <button
-                                onClick={() => rejectSpeakRequest(u.socketId)}
-                                className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-[10px] font-bold rounded transition-all shadow"
-                              >
-                                Decline
-                              </button>
-                            </>
-                          )}
-                          {u.isSpeaking && (
-                            <button
-                              onClick={() => revokeSpeak(u.socketId)}
-                              className="px-2 py-0.5 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold rounded transition-all shadow"
-                            >
-                              Mute Mic
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
 
-              {/* Hand raise for students */}
-              {user?.role === 'student' && (
-                <button
-                  onClick={toggleHandRaise}
-                  className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow"
-                >
-                  <Hand size={14} /> Toggle Hand Raise
-                </button>
+                  {/* Hand raise for students */}
+                  {user?.role === 'student' && (
+                    <button
+                      onClick={toggleHandRaise}
+                      className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow"
+                    >
+                      <Hand size={14} /> Toggle Hand Raise
+                    </button>
+                  )}
+
+                  {/* Questions Panel */}
+                  <div className="border-t border-white/5 pt-3">
+                    <span className="text-[10px] text-slate-500 font-bold tracking-wide uppercase">Student Questions</span>
+                    <div className="flex flex-col gap-2 mt-2">
+                      {questions.filter((q) => !q.resolved).map((q) => (
+                        <div key={q.id} className="bg-black/30 border border-white/5 rounded-xl p-2.5 flex flex-col gap-2">
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span className="text-sky-400 font-bold">{q.studentName}</span>
+                            {user?.role === 'teacher' && (
+                              <button
+                                onClick={() => resolveQuestion(q.id)}
+                                className="text-teal-400 hover:text-teal-300 flex items-center gap-0.5"
+                              >
+                                <CheckCircle size={10} /> Resolve
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-slate-300 text-xs leading-relaxed">{q.content}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Ask question input */}
+                    {user?.role === 'student' && (
+                      <div className="flex gap-1.5 mt-2">
+                        <input
+                          type="text"
+                          value={questionInput}
+                          onChange={(e) => setQuestionInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSendQuestion()}
+                          placeholder="Ask the instructor..."
+                          className="flex-1 h-8 bg-black/40 border border-white/10 rounded-lg px-2.5 text-xs text-white outline-none focus:border-teal-500/50"
+                        />
+                        <button
+                          onClick={handleSendQuestion}
+                          className="w-8 h-8 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-lg flex items-center justify-center transition-all"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
 
-              {/* Questions Panel */}
-              <div className="border-t border-white/5 pt-3">
-                <span className="text-[10px] text-slate-500 font-bold tracking-wide uppercase">Student Questions</span>
-                <div className="flex flex-col gap-2 mt-2">
-                  {questions.filter((q) => !q.resolved).map((q) => (
-                    <div key={q.id} className="bg-black/30 border border-white/5 rounded-xl p-2.5 flex flex-col gap-2">
-                      <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-sky-400 font-bold">{q.studentName}</span>
-                        {user?.role === 'teacher' && (
-                          <button
-                            onClick={() => resolveQuestion(q.id)}
-                            className="text-teal-400 hover:text-teal-300 flex items-center gap-0.5"
-                          >
-                            <CheckCircle size={10} /> Resolve
-                          </button>
-                        )}
+              {/* Chat Panel */}
+              {(!isMobile || activeMobileTab === 'chat') && (
+                <div className={`flex flex-col ${isMobile ? 'flex-1 h-full overflow-hidden' : 'border-t border-white/5 pt-3 min-h-[160px]'}`}>
+                  <span className="text-[10px] text-slate-500 font-bold tracking-wide uppercase">Class Chat</span>
+                  <div className={`flex-1 bg-black/30 border border-white/5 rounded-xl p-2 mt-2 overflow-y-auto text-[11px] leading-relaxed flex flex-col gap-1.5 ${isMobile ? 'h-auto' : 'max-h-[150px]'}`}>
+                    {chatHistory.map((c) => (
+                      <div key={c.id}>
+                        <span className={`font-bold ${c.role === 'teacher' ? 'text-red-400' : 'text-slate-400'}`}>{c.sender}: </span>
+                        <span className="text-slate-300">{c.message}</span>
                       </div>
-                      <p className="text-slate-300 text-xs leading-relaxed">{q.content}</p>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
 
-                {/* Ask question input */}
-                {user?.role === 'student' && (
                   <div className="flex gap-1.5 mt-2">
                     <input
                       type="text"
-                      value={questionInput}
-                      onChange={(e) => setQuestionInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendQuestion()}
-                      placeholder="Ask the instructor..."
-                      className="flex-1 h-8 bg-black/40 border border-white/10 rounded-lg px-2.5 text-xs text-white outline-none focus:border-teal-500/50"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
+                      placeholder="Type message..."
+                      className="flex-1 h-8 bg-black/40 border border-white/10 rounded-lg px-2.5 text-xs text-white outline-none focus:border-primary/50"
                     />
                     <button
-                      onClick={handleSendQuestion}
-                      className="w-8 h-8 bg-teal-500 hover:bg-teal-400 text-slate-950 rounded-lg flex items-center justify-center transition-all"
+                      onClick={handleSendChat}
+                      className="w-8 h-8 bg-primary hover:bg-primary-light text-white rounded-lg flex items-center justify-center transition-all"
                     >
-                      <Plus size={14} />
+                      <Send size={12} />
                     </button>
                   </div>
-                )}
-              </div>
-
-              {/* Live Room Chat */}
-              <div className="border-t border-white/5 pt-3 flex-1 flex flex-col min-h-[160px]">
-                <span className="text-[10px] text-slate-500 font-bold tracking-wide uppercase">Class Chat</span>
-                <div className="flex-1 bg-black/30 border border-white/5 rounded-xl p-2 mt-2 overflow-y-auto text-[11px] leading-relaxed flex flex-col gap-1.5 max-h-[150px]">
-                  {chatHistory.map((c) => (
-                    <div key={c.id}>
-                      <span className={`font-bold ${c.role === 'teacher' ? 'text-red-400' : 'text-slate-400'}`}>{c.sender}: </span>
-                      <span className="text-slate-300">{c.message}</span>
-                    </div>
-                  ))}
                 </div>
-
-                <div className="flex gap-1.5 mt-2">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
-                    placeholder="Type message..."
-                    className="flex-1 h-8 bg-black/40 border border-white/10 rounded-lg px-2.5 text-xs text-white outline-none focus:border-primary/50"
-                  />
-                  <button
-                    onClick={handleSendChat}
-                    className="w-8 h-8 bg-primary hover:bg-primary-light text-white rounded-lg flex items-center justify-center transition-all"
-                  >
-                    <Send size={12} />
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -935,6 +968,51 @@ export default function Classroom({ setView }: ClassroomProps) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Bottom navigation bar for mobile */}
+      {isMobile && (
+        <div className="h-16 bg-slate-900 border-t border-white/5 flex justify-around items-center px-4 z-[400] flex-shrink-0 select-none">
+          <button
+            onClick={() => handleMobileTabChange('board')}
+            className={`flex flex-col items-center gap-1 transition-all ${
+              activeMobileTab === 'board' ? 'text-primary' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <PenTool size={18} />
+            <span className="text-[10px] font-bold">Board</span>
+          </button>
+
+          <button
+            onClick={() => handleMobileTabChange('chat')}
+            className={`flex flex-col items-center gap-1 transition-all ${
+              activeMobileTab === 'chat' ? 'text-teal-400' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <MessageSquare size={18} />
+            <span className="text-[10px] font-bold">Chat</span>
+          </button>
+
+          <button
+            onClick={() => handleMobileTabChange('roster')}
+            className={`flex flex-col items-center gap-1 transition-all ${
+              activeMobileTab === 'roster' ? 'text-amber-500' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Users size={18} />
+            <span className="text-[10px] font-bold">Roster</span>
+          </button>
+
+          <button
+            onClick={() => handleMobileTabChange('ai')}
+            className={`flex flex-col items-center gap-1 transition-all ${
+              activeMobileTab === 'ai' ? 'text-purple-400' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Brain size={18} />
+            <span className="text-[10px] font-bold">AI Helper</span>
+          </button>
         </div>
       )}
     </div>
