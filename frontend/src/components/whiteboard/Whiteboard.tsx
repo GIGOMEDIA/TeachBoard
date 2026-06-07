@@ -411,7 +411,10 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
 
     const savedBoardJSON = boards[activeBoardIndex];
     if (savedBoardJSON) {
-      canvas.loadFromJSON(savedBoardJSON).then(() => {
+      const cleanData = JSON.parse(savedBoardJSON);
+      delete cleanData.viewportTransform;
+
+      canvas.loadFromJSON(cleanData).then(() => {
         const role = useStore.getState().user?.role;
         if (role === 'student') {
           canvas.forEachObject((obj: any) => {
@@ -419,6 +422,8 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
             obj.evented = false;
           });
         }
+        const zoomFactor = canvas.getWidth() / 1920;
+        canvas.setZoom(zoomFactor);
         drawBackgroundGrid(canvas, useStore.getState().backgroundType);
         canvas.requestRenderAll();
       });
@@ -435,7 +440,10 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      canvas.loadFromJSON(data).then(() => {
+      const cleanData = typeof data === 'string' ? JSON.parse(data) : { ...data };
+      delete cleanData.viewportTransform;
+
+      canvas.loadFromJSON(cleanData).then(() => {
         const role = useStore.getState().user?.role;
         if (role === 'student') {
           canvas.forEachObject((obj: any) => {
@@ -443,6 +451,8 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
             obj.evented = false;
           });
         }
+        const zoomFactor = canvas.getWidth() / 1920;
+        canvas.setZoom(zoomFactor);
         drawBackgroundGrid(canvas, useStore.getState().backgroundType);
         canvas.requestRenderAll();
       });
@@ -711,7 +721,12 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
     setRedoStack((prev) => [...prev, current]);
 
     const targetState = rest[rest.length - 1];
-    canvas.loadFromJSON(targetState).then(() => {
+    const cleanState = JSON.parse(targetState);
+    delete cleanState.viewportTransform;
+
+    canvas.loadFromJSON(cleanState).then(() => {
+      const zoomFactor = canvas.getWidth() / 1920;
+      canvas.setZoom(zoomFactor);
       drawBackgroundGrid(canvas, useStore.getState().backgroundType);
       canvas.requestRenderAll();
       broadcastCanvas(canvas);
@@ -726,7 +741,12 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
     setRedoStack((prev) => prev.slice(0, -1));
     setUndoStack((prev) => [...prev, nextState]);
 
-    canvas.loadFromJSON(nextState).then(() => {
+    const cleanState = JSON.parse(nextState);
+    delete cleanState.viewportTransform;
+
+    canvas.loadFromJSON(cleanState).then(() => {
+      const zoomFactor = canvas.getWidth() / 1920;
+      canvas.setZoom(zoomFactor);
       drawBackgroundGrid(canvas, useStore.getState().backgroundType);
       canvas.requestRenderAll();
       broadcastCanvas(canvas);
