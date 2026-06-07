@@ -5,6 +5,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
 import { runMigrations } from './config/db.js';
 import authRoutes from './routes/auth.js';
@@ -55,6 +56,21 @@ app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/upload', uploadRoutes);
+
+// Serving static frontend built files in production
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDist = path.resolve(__dirname, '../../dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res, next) => {
+    if (!req.url.startsWith('/api') && !req.url.startsWith('/uploads') && !req.url.startsWith('/health')) {
+      res.sendFile(path.join(frontendDist, 'index.html'));
+    } else {
+      next();
+    }
+  });
+}
 
 // Health Check Route
 app.get('/health', (req, res) => {

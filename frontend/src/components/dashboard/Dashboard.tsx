@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { LogOut, Plus, Play, Users, Clock, BookOpen, BarChart2 } from 'lucide-react';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (
+  window.location.port === '5173'
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
+    : `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`
+);
 
 interface DashboardProps {
   setView: (view: 'dashboard' | 'classroom') => void;

@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import io from 'socket.io-client';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || (
+  window.location.port === '5173'
+    ? `${window.location.protocol}//${window.location.hostname}:5000`
+    : `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ''}`
+);
 
 interface User {
   id: string;
