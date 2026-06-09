@@ -182,7 +182,7 @@ export default function Classroom({ setView }: ClassroomProps) {
 
           // Create sender connection
           const pc = new RTCPeerConnection({
-            iceServers: [{ urls: 'stun:stun.l.google.com:19002' }]
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
           });
 
           // Add mic track
@@ -216,7 +216,7 @@ export default function Classroom({ setView }: ClassroomProps) {
           let pc = peerConnectionsRef.current.get(senderSocketId);
           if (!pc) {
             pc = new RTCPeerConnection({
-              iceServers: [{ urls: 'stun:stun.l.google.com:19002' }]
+              iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
             });
             pc.onicecandidate = (event) => {
               if (event.candidate) {
@@ -343,7 +343,7 @@ export default function Classroom({ setView }: ClassroomProps) {
         console.log(`WebRTC: Initiating listening channel to ${sp.name}...`);
         
         const pc = new RTCPeerConnection({
-          iceServers: [{ urls: 'stun:stun.l.google.com:19002' }]
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
         });
 
         pc.onicecandidate = (event) => {
@@ -632,15 +632,26 @@ export default function Classroom({ setView }: ClassroomProps) {
             </button>
 
             {user?.role === 'teacher' && (
-              <select
-                value={backgroundType}
-                onChange={(e) => handleBackgroundChange(e.target.value as any)}
-                className="bg-slate-800 border border-white/10 text-[10px] md:text-xs text-slate-300 rounded-lg px-2 py-1 md:py-1.5 outline-none focus:border-primary/50 max-w-[80px] md:max-w-none"
-              >
-                <option value="grid">Grid</option>
-                <option value="blank">Blank</option>
-                <option value="coordinate">Axes</option>
-              </select>
+              <>
+                <select
+                  value={backgroundType}
+                  onChange={(e) => handleBackgroundChange(e.target.value as any)}
+                  className="bg-slate-800 border border-white/10 text-[10px] md:text-xs text-slate-300 rounded-lg px-2 py-1 md:py-1.5 outline-none focus:border-primary/50 max-w-[80px] md:max-w-none"
+                >
+                  <option value="grid">Grid</option>
+                  <option value="blank">Blank</option>
+                  <option value="coordinate">Axes</option>
+                </select>
+
+                <button
+                  onClick={() => setMathModalVisible(true)}
+                  className="h-7 md:h-8 px-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 text-[10px] md:text-xs font-bold rounded-lg transition-all shadow flex items-center justify-center gap-1 flex-shrink-0"
+                >
+                  <Plus size={12} />
+                  <span className="hidden sm:inline">Plot Graph</span>
+                  <span className="inline sm:hidden">Plot</span>
+                </button>
+              </>
             )}
 
             {/* Desktop-only Widget controllers */}
@@ -682,15 +693,7 @@ export default function Classroom({ setView }: ClassroomProps) {
         {/* Fabric drawing board */}
         <Whiteboard canvasRef={canvasRef} />
 
-        {/* Draggable Math graph plotting trigger (Teachers only) */}
-        {user?.role === 'teacher' && (
-          <button
-            onClick={() => setMathModalVisible(true)}
-            className="absolute bottom-6 left-6 bg-teal-500 text-slate-950 px-4 py-2.5 rounded-xl font-bold text-xs hover:bg-teal-400 transition-all shadow-xl flex items-center gap-1.5 z-[100]"
-          >
-            <Plus size={16} /> Plot Functions
-          </button>
-        )}
+
 
         {/* Floating draggable widgets */}
         <Calculator />

@@ -50,6 +50,7 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
   const studentLastPoint = useRef<{ x: number, y: number } | null>(null);
   const studentDrawColor = useRef<string>('#14b8a6');
   const studentDrawWidth = useRef<number>(3);
+  const isDeserializing = useRef(false);
 
   // Initialize canvas
   useEffect(() => {
@@ -159,6 +160,10 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
 
       // Object events for history/undo/redo and socket sync
       canvas.on('object:added', (e: any) => {
+        if (isDeserializing.current) return;
+        const currentUser = useStore.getState().user;
+        if (currentUser?.role !== 'teacher') return;
+
         if (e.target && !e.target.isGridLine && !isDrawingShape.current) {
           // Tag with random ID if not already synced from someone else
           if (!e.target.id) {
@@ -170,11 +175,19 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
       });
 
       canvas.on('object:modified', () => {
+        if (isDeserializing.current) return;
+        const currentUser = useStore.getState().user;
+        if (currentUser?.role !== 'teacher') return;
+
         saveState(canvas);
         broadcastCanvas(canvas);
       });
 
       canvas.on('object:removed', (e: any) => {
+        if (isDeserializing.current) return;
+        const currentUser = useStore.getState().user;
+        if (currentUser?.role !== 'teacher') return;
+
         if (e.target && !e.target.isGridLine) {
           saveState(canvas);
           broadcastCanvas(canvas);
@@ -414,7 +427,9 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
       const cleanData = JSON.parse(savedBoardJSON);
       delete cleanData.viewportTransform;
 
+      isDeserializing.current = true;
       canvas.loadFromJSON(cleanData).then(() => {
+        isDeserializing.current = false;
         const role = useStore.getState().user?.role;
         if (role === 'student') {
           canvas.forEachObject((obj: any) => {
@@ -443,7 +458,13 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
       const cleanData = typeof data === 'string' ? JSON.parse(data) : { ...data };
       delete cleanData.viewportTransform;
 
+      // Update student's local boards store so board/slide switches don't wipe it
+      const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
+      saveActiveBoardData(dataStr);
+
+      isDeserializing.current = true;
       canvas.loadFromJSON(cleanData).then(() => {
+        isDeserializing.current = false;
         const role = useStore.getState().user?.role;
         if (role === 'student') {
           canvas.forEachObject((obj: any) => {
@@ -724,7 +745,9 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
     const cleanState = JSON.parse(targetState);
     delete cleanState.viewportTransform;
 
+    isDeserializing.current = true;
     canvas.loadFromJSON(cleanState).then(() => {
+      isDeserializing.current = false;
       const zoomFactor = canvas.getWidth() / 1920;
       canvas.setZoom(zoomFactor);
       drawBackgroundGrid(canvas, useStore.getState().backgroundType);
@@ -744,7 +767,9 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
     const cleanState = JSON.parse(nextState);
     delete cleanState.viewportTransform;
 
+    isDeserializing.current = true;
     canvas.loadFromJSON(cleanState).then(() => {
+      isDeserializing.current = false;
       const zoomFactor = canvas.getWidth() / 1920;
       canvas.setZoom(zoomFactor);
       drawBackgroundGrid(canvas, useStore.getState().backgroundType);
@@ -785,9 +810,9 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
   const colorsList = ['#2563EB', '#0EA5E9', '#14B8A6', '#F59E0B', '#EF4444', '#FFFFFF'];
 
   return (
-    <div className="relative flex-1 h-full w-full bg-slate-950" ref={containerRef}>
+    <div className="relative flex-1 h-full w-full bg-slate-950 touch-none" style={{ touchAction: 'none' }} ref={containerRef}>
       {/* HTML Drawing Canvas element */}
-      <canvas id="whiteboard-canvas" className="w-full h-full block" />
+      <canvas id="whiteboard-canvas" className="w-full h-full block touch-none" style={{ touchAction: 'none' }} />
 
       {/* Floating Toolbar Panel (Teachers only) */}
       {user?.role === 'teacher' && (
