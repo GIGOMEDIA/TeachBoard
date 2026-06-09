@@ -132,8 +132,19 @@ export const useStore = create<TeachBoardState>((set, get) => ({
     if (!user) return;
     if (socket) socket.disconnect();
 
+    // Reset board state for a fresh room session
+    set({
+      boards: ['', '', ''],
+      activeBoardIndex: 0,
+      backgroundType: 'grid',
+      currentTool: 'pencil',
+      currentColor: '#2563EB',
+      currentStrokeWidth: 4,
+    });
+
     const cleanCode = roomCode.toUpperCase();
     const newSocket = io(BACKEND_URL);
+
 
     newSocket.on('connect', () => {
       set({ isConnected: true, roomCode: cleanCode });

@@ -27,7 +27,6 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
   const {
     user,
     socket,
-    isConnected,
     currentTool,
     currentColor,
     currentStrokeWidth,
@@ -101,15 +100,54 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
       // Setup background grid
       drawBackgroundGrid(canvas, backgroundType);
 
-      // Save initial state
-      saveState(canvas);
+      // Load initial state if present in store
+      const currentBoards = useStore.getState().boards;
+      const currentBoardIndex = useStore.getState().activeBoardIndex;
+      const initialBoardData = currentBoards[currentBoardIndex];
+      console.log('[Whiteboard] initCanvas: checking for initial board state at index', currentBoardIndex, 'hasData:', !!initialBoardData);
+      if (initialBoardData) {
+        try {
+          const cleanData = JSON.parse(initialBoardData);
+          delete cleanData.viewportTransform;
+          isDeserializing.current = true;
+          canvas.loadFromJSON(cleanData).then(() => {
+            console.log('[Whiteboard] initCanvas: successfully loaded initial board data.');
+            isDeserializing.current = false;
+            const role = useStore.getState().user?.role;
+            if (role === 'student') {
+              canvas.forEachObject((obj: any) => {
+                obj.selectable = false;
+                obj.evented = false;
+              });
+            }
+            const zoomFactor = canvas.getWidth() / 1920;
+            canvas.setZoom(zoomFactor);
+            drawBackgroundGrid(canvas, useStore.getState().backgroundType);
+            canvas.requestRenderAll();
+            setUndoStack([initialBoardData]);
+            setRedoStack([]);
+          }).catch((err: any) => {
+            console.error('[Whiteboard] initCanvas: error loading initial board JSON:', err);
+            isDeserializing.current = false;
+            saveState(canvas);
+          });
+        } catch (err) {
+          console.error('[Whiteboard] initCanvas: error parsing initial board data:', err);
+          isDeserializing.current = false;
+          saveState(canvas);
+        }
+      } else {
+        saveState(canvas);
+      }
 
       window.addEventListener('resize', handleResize);
 
       // Pointer events for cursor coordinates sync
       canvas.on('mouse:move', (options: any) => {
-        if (options.pointer && socket && isConnected) {
-          socket.emit('cursor-move', {
+        const currentSocket = useStore.getState().socket;
+        const currentIsConnected = useStore.getState().isConnected;
+        if (options.pointer && currentSocket && currentIsConnected) {
+          currentSocket.emit('cursor-move', {
             x: options.pointer.x,
             y: options.pointer.y
           });
@@ -124,13 +162,16 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
         if (canvas.isDrawingMode) {
           isTeacherDrawing.current = true;
           const pointer = o.scenePoint || canvas.getPointer(o.e);
-          socket.emit('draw-pointer', {
-            event: 'down',
-            x: pointer.x,
-            y: pointer.y,
-            color: canvas.freeDrawingBrush?.color || currentColor,
-            width: canvas.freeDrawingBrush?.width || currentStrokeWidth
-          });
+          const currentSocket = useStore.getState().socket;
+          if (currentSocket) {
+            currentSocket.emit('draw-pointer', {
+              event: 'down',
+              x: pointer.x,
+              y: pointer.y,
+              color: canvas.freeDrawingBrush?.color || currentColor,
+              width: canvas.freeDrawingBrush?.width || currentStrokeWidth
+            });
+          }
         }
       });
 
@@ -140,11 +181,14 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
 
         if (isTeacherDrawing.current && canvas.isDrawingMode) {
           const pointer = o.scenePoint || canvas.getPointer(o.e);
-          socket.emit('draw-pointer', {
-            event: 'move',
-            x: pointer.x,
-            y: pointer.y
-          });
+          const currentSocket = useStore.getState().socket;
+          if (currentSocket) {
+            currentSocket.emit('draw-pointer', {
+              event: 'move',
+              x: pointer.x,
+              y: pointer.y
+            });
+          }
         }
       });
 
@@ -154,7 +198,10 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
 
         if (isTeacherDrawing.current) {
           isTeacherDrawing.current = false;
-          socket.emit('draw-pointer', { event: 'up' });
+          const currentSocket = useStore.getState().socket;
+          if (currentSocket) {
+            currentSocket.emit('draw-pointer', { event: 'up' });
+          }
         }
       });
 
@@ -420,30 +467,59 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
   // Sync boards changes (local state reload)
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.log('[Whiteboard] activeBoardIndex useEffect: canvas not ready.');
+      return;
+    }
 
     const savedBoardJSON = boards[activeBoardIndex];
-    if (savedBoardJSON) {
-      const cleanData = JSON.parse(savedBoardJSON);
-      delete cleanData.viewportTransform;
+    const role = useStore.getState().user?.role;
+    console.log('[Whiteboard] activeBoardIndex useEffect triggered. index:', activeBoardIndex, 'role:', role, 'hasSavedJSON:', !!savedBoardJSON);
 
-      isDeserializing.current = true;
-      canvas.loadFromJSON(cleanData).then(() => {
+    if (savedBoardJSON) {
+      try {
+        const cleanData = JSON.parse(savedBoardJSON);
+        delete cleanData.viewportTransform;
+
+        isDeserializing.current = true;
+        canvas.loadFromJSON(cleanData).then(() => {
+          console.log('[Whiteboard] activeBoardIndex loaded saved state successfully.');
+          isDeserializing.current = false;
+          if (role === 'student') {
+            canvas.forEachObject((obj: any) => {
+              obj.selectable = false;
+              obj.evented = false;
+            });
+          }
+          const zoomFactor = canvas.getWidth() / 1920;
+          canvas.setZoom(zoomFactor);
+          drawBackgroundGrid(canvas, useStore.getState().backgroundType);
+          canvas.requestRenderAll();
+
+          // Sync student if teacher switched board
+          if (role === 'teacher') {
+            console.log('[Whiteboard] Teacher switched board. Broadcasting active board state...');
+            broadcastCanvas(canvas);
+          }
+        }).catch((err: any) => {
+          console.error('[Whiteboard] activeBoardIndex: error in loadFromJSON:', err);
+          isDeserializing.current = false;
+        });
+      } catch (err: any) {
+        console.error('[Whiteboard] activeBoardIndex: error parsing savedBoardJSON:', err);
         isDeserializing.current = false;
-        const role = useStore.getState().user?.role;
-        if (role === 'student') {
-          canvas.forEachObject((obj: any) => {
-            obj.selectable = false;
-            obj.evented = false;
-          });
-        }
-        const zoomFactor = canvas.getWidth() / 1920;
-        canvas.setZoom(zoomFactor);
-        drawBackgroundGrid(canvas, useStore.getState().backgroundType);
-        canvas.requestRenderAll();
-      });
+      }
     } else {
       clearCanvasLocal();
+      if (role === 'teacher') {
+        console.log('[Whiteboard] Teacher switched to empty board. Broadcasting clear...');
+        broadcastCanvas(canvas);
+        const currentSocket = useStore.getState().socket;
+        const currentIsConnected = useStore.getState().isConnected;
+        if (currentIsConnected && currentSocket) {
+          currentSocket.emit('canvas-clear');
+        }
+      }
     }
   }, [activeBoardIndex]);
 
@@ -453,30 +529,41 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
 
     socket.on('canvas-update-received', (data: any) => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const cleanData = typeof data === 'string' ? JSON.parse(data) : { ...data };
-      delete cleanData.viewportTransform;
-
-      // Update student's local boards store so board/slide switches don't wipe it
+      console.log('[Whiteboard] socket canvas-update-received. Has canvas:', !!canvas);
+      
       const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
+      // Save data immediately so that even if canvas is null, store retains it
       saveActiveBoardData(dataStr);
 
-      isDeserializing.current = true;
-      canvas.loadFromJSON(cleanData).then(() => {
+      if (!canvas) return;
+
+      try {
+        const cleanData = JSON.parse(dataStr);
+        delete cleanData.viewportTransform;
+
+        isDeserializing.current = true;
+        canvas.loadFromJSON(cleanData).then(() => {
+          console.log('[Whiteboard] canvas-update-received: successfully loaded JSON.');
+          isDeserializing.current = false;
+          const role = useStore.getState().user?.role;
+          if (role === 'student') {
+            canvas.forEachObject((obj: any) => {
+              obj.selectable = false;
+              obj.evented = false;
+            });
+          }
+          const zoomFactor = canvas.getWidth() / 1920;
+          canvas.setZoom(zoomFactor);
+          drawBackgroundGrid(canvas, useStore.getState().backgroundType);
+          canvas.requestRenderAll();
+        }).catch((err: any) => {
+          console.error('[Whiteboard] canvas-update-received: loadFromJSON error:', err);
+          isDeserializing.current = false;
+        });
+      } catch (err) {
+        console.error('[Whiteboard] canvas-update-received: error parsing JSON data:', err);
         isDeserializing.current = false;
-        const role = useStore.getState().user?.role;
-        if (role === 'student') {
-          canvas.forEachObject((obj: any) => {
-            obj.selectable = false;
-            obj.evented = false;
-          });
-        }
-        const zoomFactor = canvas.getWidth() / 1920;
-        canvas.setZoom(zoomFactor);
-        drawBackgroundGrid(canvas, useStore.getState().backgroundType);
-        canvas.requestRenderAll();
-      });
+      }
     });
 
     socket.on('canvas-clear-received', () => {
@@ -742,18 +829,26 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
     setRedoStack((prev) => [...prev, current]);
 
     const targetState = rest[rest.length - 1];
-    const cleanState = JSON.parse(targetState);
-    delete cleanState.viewportTransform;
+    try {
+      const cleanState = JSON.parse(targetState);
+      delete cleanState.viewportTransform;
 
-    isDeserializing.current = true;
-    canvas.loadFromJSON(cleanState).then(() => {
+      isDeserializing.current = true;
+      canvas.loadFromJSON(cleanState).then(() => {
+        isDeserializing.current = false;
+        const zoomFactor = canvas.getWidth() / 1920;
+        canvas.setZoom(zoomFactor);
+        drawBackgroundGrid(canvas, useStore.getState().backgroundType);
+        canvas.requestRenderAll();
+        broadcastCanvas(canvas);
+      }).catch((err: any) => {
+        console.error('[Whiteboard] handleUndo: error in loadFromJSON:', err);
+        isDeserializing.current = false;
+      });
+    } catch (err: any) {
+      console.error('[Whiteboard] handleUndo: error parsing state JSON:', err);
       isDeserializing.current = false;
-      const zoomFactor = canvas.getWidth() / 1920;
-      canvas.setZoom(zoomFactor);
-      drawBackgroundGrid(canvas, useStore.getState().backgroundType);
-      canvas.requestRenderAll();
-      broadcastCanvas(canvas);
-    });
+    }
   };
 
   const handleRedo = () => {
@@ -764,18 +859,26 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
     setRedoStack((prev) => prev.slice(0, -1));
     setUndoStack((prev) => [...prev, nextState]);
 
-    const cleanState = JSON.parse(nextState);
-    delete cleanState.viewportTransform;
+    try {
+      const cleanState = JSON.parse(nextState);
+      delete cleanState.viewportTransform;
 
-    isDeserializing.current = true;
-    canvas.loadFromJSON(cleanState).then(() => {
+      isDeserializing.current = true;
+      canvas.loadFromJSON(cleanState).then(() => {
+        isDeserializing.current = false;
+        const zoomFactor = canvas.getWidth() / 1920;
+        canvas.setZoom(zoomFactor);
+        drawBackgroundGrid(canvas, useStore.getState().backgroundType);
+        canvas.requestRenderAll();
+        broadcastCanvas(canvas);
+      }).catch((err: any) => {
+        console.error('[Whiteboard] handleRedo: error in loadFromJSON:', err);
+        isDeserializing.current = false;
+      });
+    } catch (err: any) {
+      console.error('[Whiteboard] handleRedo: error parsing state JSON:', err);
       isDeserializing.current = false;
-      const zoomFactor = canvas.getWidth() / 1920;
-      canvas.setZoom(zoomFactor);
-      drawBackgroundGrid(canvas, useStore.getState().backgroundType);
-      canvas.requestRenderAll();
-      broadcastCanvas(canvas);
-    });
+    }
   };
 
   const clearCanvasLocal = () => {
@@ -793,17 +896,21 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
     if (canvas) {
       saveState(canvas);
       broadcastCanvas(canvas);
-      if (isConnected && socket) {
-        socket.emit('canvas-clear');
+      const currentSocket = useStore.getState().socket;
+      const currentIsConnected = useStore.getState().isConnected;
+      if (currentIsConnected && currentSocket) {
+        currentSocket.emit('canvas-clear');
       }
     }
   };
 
   const broadcastCanvas = (canvas: any) => {
-    if (isConnected && socket) {
+    const currentSocket = useStore.getState().socket;
+    const currentIsConnected = useStore.getState().isConnected;
+    if (currentIsConnected && currentSocket) {
       const json = canvas.toJSON(['id']);
       json.objects = json.objects.filter((obj: any) => !obj.isGridLine);
-      socket.emit('canvas-update', json);
+      currentSocket.emit('canvas-update', json);
     }
   };
 
