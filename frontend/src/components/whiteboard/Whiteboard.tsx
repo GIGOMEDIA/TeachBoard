@@ -40,6 +40,7 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
 
   const [undoStack, setUndoStack] = useState<string[]>([]);
   const [redoStack, setRedoStack] = useState<string[]>([]);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const isDrawingShape = useRef(false);
   const shapeStartPoint = useRef<{ x: number, y: number } | null>(null);
   const activeShape = useRef<fabric.Object | null>(null);
@@ -58,11 +59,23 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
 
     const handleResize = () => {
       if (!containerRef.current || !canvasRef.current) return;
-      const width = containerRef.current.clientWidth;
-      const height = containerRef.current.clientHeight;
-      canvasRef.current.setWidth(width);
-      canvasRef.current.setHeight(height);
-      const zoomFactor = width / 1920;
+      const parentWidth = containerRef.current.clientWidth;
+      const parentHeight = containerRef.current.clientHeight;
+
+      const targetAspectRatio = 16 / 9;
+      let canvasWidth = parentWidth;
+      let canvasHeight = parentWidth / targetAspectRatio;
+
+      if (canvasHeight > parentHeight) {
+        canvasHeight = parentHeight;
+        canvasWidth = parentHeight * targetAspectRatio;
+      }
+
+      setCanvasSize({ width: canvasWidth, height: canvasHeight });
+      canvasRef.current.setWidth(canvasWidth);
+      canvasRef.current.setHeight(canvasHeight);
+      
+      const zoomFactor = canvasWidth / 1920;
       canvasRef.current.setZoom(zoomFactor);
       drawBackgroundGrid(canvasRef.current, useStore.getState().backgroundType);
     };
@@ -76,16 +89,27 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
       if (!active) return;
       if (!containerRef.current) return;
 
-      const width = containerRef.current.clientWidth;
-      const height = containerRef.current.clientHeight;
+      const parentWidth = containerRef.current.clientWidth;
+      const parentHeight = containerRef.current.clientHeight;
+
+      const targetAspectRatio = 16 / 9;
+      let canvasWidth = parentWidth;
+      let canvasHeight = parentWidth / targetAspectRatio;
+
+      if (canvasHeight > parentHeight) {
+        canvasHeight = parentHeight;
+        canvasWidth = parentHeight * targetAspectRatio;
+      }
+
+      setCanvasSize({ width: canvasWidth, height: canvasHeight });
 
       // Double check that we don't try to double-initialize if another useEffect run got there first
       if (canvasRef.current) return;
 
       // Create Canvas instance
       canvas = new fabric.Canvas('whiteboard-canvas', {
-        width: width,
-        height: height,
+        width: canvasWidth,
+        height: canvasHeight,
         isDrawingMode: true,
         selection: false,
         stopContextMenu: true,
@@ -94,7 +118,7 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
       canvasRef.current = canvas;
 
       // Set initial zoom factor based on 1920 virtual width
-      const initialZoom = width / 1920;
+      const initialZoom = canvasWidth / 1920;
       canvas.setZoom(initialZoom);
 
       // Setup background grid
@@ -918,9 +942,18 @@ export default function Whiteboard({ canvasRef }: WhiteboardProps) {
   const colorsList = ['#2563EB', '#0EA5E9', '#14B8A6', '#F59E0B', '#EF4444', '#FFFFFF'];
 
   return (
-    <div className="relative flex-1 h-full w-full bg-slate-950 touch-none" style={{ touchAction: 'none' }} ref={containerRef}>
-      {/* HTML Drawing Canvas element */}
-      <canvas id="whiteboard-canvas" className="w-full h-full block touch-none" style={{ touchAction: 'none' }} />
+    <div className="relative flex-1 h-full w-full bg-slate-950 touch-none flex items-center justify-center overflow-hidden" style={{ touchAction: 'none' }} ref={containerRef}>
+      {/* Centered 16:9 Aspect Ratio Wrapper */}
+      <div 
+        style={{
+          width: canvasSize.width || '100%',
+          height: canvasSize.height || '100%',
+          position: 'relative'
+        }}
+      >
+        {/* HTML Drawing Canvas element */}
+        <canvas id="whiteboard-canvas" className="block touch-none" style={{ touchAction: 'none' }} />
+      </div>
 
       {/* Floating Toolbar Panel (Teachers only) */}
       {user?.role === 'teacher' && (

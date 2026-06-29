@@ -165,7 +165,13 @@ export default function Classroom({ setView }: ClassroomProps) {
 
           // Create sender connection
           const pc = new RTCPeerConnection({
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+              { urls: 'stun:stun2.l.google.com:19302' },
+              { urls: 'stun:stun3.l.google.com:19302' },
+              { urls: 'stun:stun4.l.google.com:19302' }
+            ]
           });
 
           // Add mic track
@@ -199,7 +205,13 @@ export default function Classroom({ setView }: ClassroomProps) {
           let pc = peerConnectionsRef.current.get(senderSocketId);
           if (!pc) {
             pc = new RTCPeerConnection({
-              iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+              iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
+              ]
             });
             pc.onicecandidate = (event) => {
               if (event.candidate) {
@@ -217,7 +229,15 @@ export default function Classroom({ setView }: ClassroomProps) {
                 audio = document.createElement('audio');
                 audio.autoplay = true;
                 audio.setAttribute('playsinline', 'true');
-                audio.style.display = 'none';
+                audio.muted = false;
+                audio.volume = 1.0;
+                // Prevent display:none blocks on mobile safari by using off-screen relative styling
+                audio.style.position = 'absolute';
+                audio.style.width = '1px';
+                audio.style.height = '1px';
+                audio.style.opacity = '0.01';
+                audio.style.overflow = 'hidden';
+                audio.style.pointerEvents = 'none';
                 document.body.appendChild(audio);
                 audioElementsRef.current.set(senderSocketId, audio);
               }
@@ -325,7 +345,13 @@ export default function Classroom({ setView }: ClassroomProps) {
         console.log(`WebRTC: Initiating listening channel to ${sp.name}...`);
         
         const pc = new RTCPeerConnection({
-          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
+          ]
         });
 
         pc.onicecandidate = (event) => {
@@ -346,7 +372,15 @@ export default function Classroom({ setView }: ClassroomProps) {
             audio = document.createElement('audio');
             audio.autoplay = true;
             audio.setAttribute('playsinline', 'true');
-            audio.style.display = 'none';
+            audio.muted = false;
+            audio.volume = 1.0;
+            // Prevent display:none blocks on mobile safari by using off-screen relative styling
+            audio.style.position = 'absolute';
+            audio.style.width = '1px';
+            audio.style.height = '1px';
+            audio.style.opacity = '0.01';
+            audio.style.overflow = 'hidden';
+            audio.style.pointerEvents = 'none';
             document.body.appendChild(audio);
             audioElementsRef.current.set(sp.socketId, audio);
           }
