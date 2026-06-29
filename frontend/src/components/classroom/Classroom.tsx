@@ -102,6 +102,7 @@ export default function Classroom({ setView }: ClassroomProps) {
   const localStreamRef = React.useRef<MediaStream | null>(null);
   const peerConnectionsRef = React.useRef<Map<string, RTCPeerConnection>>(new Map());
   const audioElementsRef = React.useRef<Map<string, HTMLAudioElement>>(new Map());
+  const candidateQueuesRef = React.useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
   // Dynamic voice store functions
   const {
@@ -119,6 +120,7 @@ export default function Classroom({ setView }: ClassroomProps) {
       pc.close();
     });
     peerConnectionsRef.current.clear();
+    candidateQueuesRef.current.clear();
     console.log('WebRTC: Closed all active sending streams');
   }, []);
 
@@ -233,17 +235,52 @@ export default function Classroom({ setView }: ClassroomProps) {
             targetSocketId: senderSocketId,
             signal: { type: 'answer', sdp: answer.sdp }
           });
+
+          // Process queued candidates
+          const queue = candidateQueuesRef.current.get(senderSocketId) || [];
+          for (const candidate of queue) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (e) {
+              console.error(`WebRTC: Error adding queued candidate from ${senderSocketId}`, e);
+            }
+          }
+          candidateQueuesRef.current.delete(senderSocketId);
         } 
         else if (signal.type === 'answer') {
           const pc = peerConnectionsRef.current.get(senderSocketId);
           if (pc) {
             await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: signal.sdp }));
+
+            // Process queued candidates
+            const queue = candidateQueuesRef.current.get(senderSocketId) || [];
+            for (const candidate of queue) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+              } catch (e) {
+                console.error(`WebRTC: Error adding queued candidate from ${senderSocketId}`, e);
+              }
+            }
+            candidateQueuesRef.current.delete(senderSocketId);
           }
         } 
         else if (signal.type === 'candidate') {
           const pc = peerConnectionsRef.current.get(senderSocketId);
-          if (pc && signal.candidate) {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          if (pc) {
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+              } catch (e) {
+                console.error(`WebRTC: Error adding candidate from ${senderSocketId}`, e);
+              }
+            } else {
+              // Queue candidate until remote description is set
+              if (!candidateQueuesRef.current.has(senderSocketId)) {
+                candidateQueuesRef.current.set(senderSocketId, []);
+              }
+              candidateQueuesRef.current.get(senderSocketId)!.push(signal.candidate);
+              console.log(`WebRTC: Queued candidate from ${senderSocketId}`);
+            }
           }
         }
       } catch (err) {
